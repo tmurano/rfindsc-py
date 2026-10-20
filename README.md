@@ -2,6 +2,8 @@
 
 **Direction-aware panel scoring for single-cell RNA-seq (RFind-sc), in Python.**
 
+> RFind-sc has three repositories: the R package [RFindsc](https://github.com/tmurano/RFindsc) (for Seurat objects), this Python package (**rfindsc**, for AnnData; the same scores) and the [analysis code of the RFind-sc paper](https://github.com/tmurano/RFind-sc).
+
 `rfindsc` is the Python implementation of the R package
 [RFindsc](https://github.com/tmurano/RFindsc). Version 1.0.0 matches
 **RFindsc 1.0.0**: the same algorithm, the same bundled references and the same
