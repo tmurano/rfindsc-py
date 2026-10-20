@@ -5,8 +5,8 @@
 > RFind-sc has three repositories: the R package [RFindsc](https://github.com/tmurano/RFindsc) (for Seurat objects), this Python package (**rfindsc**, for AnnData; the same scores) and the [analysis code of the RFind-sc paper](https://github.com/tmurano/RFind-sc).
 
 `rfindsc` is the Python implementation of the R package
-[RFindsc](https://github.com/tmurano/RFindsc). Version 1.0.0 matches
-**RFindsc 1.0.0**: the same algorithm, the same bundled references and the same
+[RFindsc](https://github.com/tmurano/RFindsc). Version 1.0.1 matches
+**RFindsc 1.0.1**: the same algorithm, the same bundled references and the same
 scores (the test suite checks agreement with R to 1e-8; the observed differences
 are below 1e-12; see [Numerical equivalence](#numerical-equivalence)).
 
@@ -47,9 +47,9 @@ pair universe, and a gene set is used whole.
 ## Installation
 
 ```bash
-pip install git+https://github.com/tmurano/rfindsc-py@v1.0.0
+pip install git+https://github.com/tmurano/rfindsc-py@v1.0.1
 # optional AnnData support
-pip install "rfindsc[anndata] @ git+https://github.com/tmurano/rfindsc-py@v1.0.0"
+pip install "rfindsc[anndata] @ git+https://github.com/tmurano/rfindsc-py@v1.0.1"
 ```
 
 Requires Python >= 3.9, numpy, scipy and pandas.
@@ -168,6 +168,21 @@ Differences from the R package:
 * Python-only input options: `genes=`, `cells=`, `layout=`, `layer=` (AnnData,
   data frames, plain matrices). `libsize=` and `baseline_groups=` exist in both.
 
+## Numerical zeroes and input checks
+
+A count difference (observed minus expected) is zero when it is within the
+floating-point error of the baseline,
+`8 * eps * max(8, N) * max(1, abs(observed), abs(expected))`, where `eps` is the
+float64 machine epsilon and `N` is the number of cells in the cell's baseline
+group (`N = 1` in `build_cell_signature()`). A cell identical to its baseline,
+such as the only cell of a baseline group, therefore gets empty UP/DOWN lists
+and a score of 0. The R package uses the same rule.
+
+Counts must be finite and non-negative, library sizes finite and positive, and
+gene names present and non-empty. A gene named twice in a prepared reference
+list gives one warning before scoring; the list is scored as given, so remove
+the duplicate from the reference.
+
 ## Numerical equivalence
 
 `tests/test_r_equivalence.py` compares the package with reference outputs of
@@ -194,6 +209,18 @@ pip install -e ".[test]"
 pytest -s            # prints the maximum differences
 ```
 
+To run this package and RFindsc on the same inputs, check out
+[RFindsc](https://github.com/tmurano/RFindsc) beside this repository and install
+R with Matrix and jsonlite (`RFINDSC_RSCRIPT` selects the Rscript):
+
+```bash
+RFINDSC_R_SOURCE=../RFindsc pytest -q
+python tools/check_cross_language.py --r-source ../RFindsc --report parity.json
+```
+
+This compares the scores (to 1e-8), the UP/DOWN lists, the universes and the
+384 kernel cases; the report records the largest differences.
+
 ## Performance
 
 2,000 Hammond et al. microglia x the 4 bundled panels (8,960-gene universe) on
@@ -203,7 +230,7 @@ an 8-core Apple M3 laptop: about 490 cells/s on one core and 2,400 cells/s with
 ## Citation
 
 Murano et al. (in preparation). Until the preprint is available, please cite
-this repository (the paper used version 1.0.0, git tag `v1.0.0`) and the R package.
+this repository (the paper used version 1.0.1, git tag `v1.0.1`) and the R package.
 
 ## License
 

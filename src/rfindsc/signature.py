@@ -6,6 +6,19 @@ import math
 import numpy as np
 
 
+def _p2_residual(obs, expected, baseline_size=1):
+    """P2 residual, with a count-scale bound for baseline summation roundoff.
+
+    R uses the same bound: 8 * eps * max(8, baseline_size) *
+    max(1, abs(obs), abs(expected)). This covers the additions in the mean
+    and the CPM conversions; it is not an expression or effect-size filter.
+    """
+    diff = obs - expected
+    scale = np.maximum(1.0, np.maximum(np.abs(obs), np.abs(expected)))
+    tolerance = 8.0 * np.finfo(np.float64).eps * np.maximum(8, baseline_size) * scale
+    return np.where(np.abs(diff) <= tolerance, 0.0, diff) / np.sqrt(expected + 1)
+
+
 def _cap(n):
     """Signature / panel length cap: None means no cap (R: head(x, Inf))."""
     if n is None:
@@ -54,7 +67,9 @@ def build_cell_signature(obs, expected, n_cell=500) -> dict:
     cell's library size. UP = genes with a positive residual, largest first;
     DOWN = genes with a negative residual, most negative first; at most
     ``n_cell`` each (fewer when fewer residuals have that sign; ties keep gene
-    order).
+    order). Count differences within 64 machine epsilons times the larger of
+    1, observed and expected counts are numerical zeroes. ``score_cells``
+    additionally allows for summation over the cells in each baseline group.
 
     Parameters
     ----------
@@ -73,6 +88,6 @@ def build_cell_signature(obs, expected, n_cell=500) -> dict:
     """
     obs = np.asarray(obs, dtype=np.float64)
     expected = np.asarray(expected, dtype=np.float64)
-    resid = (obs - expected) / np.sqrt(expected + 1)
+    resid = _p2_residual(obs, expected)
     up, down = _signature_from_resid(resid, _cap(n_cell))
     return {"up_idx": up, "down_idx": down}

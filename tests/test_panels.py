@@ -79,4 +79,4 @@ def test_build_panel_from_deg_matches_r():
 
 
 def test_version():
-    assert rfindsc.__version__ == "1.0.0"
+    assert rfindsc.__version__ == "1.0.1"

@@ -1,6 +1,6 @@
 """RFind-sc: direction-aware panel scoring for single-cell RNA-seq.
 
-Python implementation of the R package RFindsc 1.0.0 (same algorithm, same
+Python implementation of the R package RFindsc 1.0.1 (same algorithm, same
 bundled references, numerically identical scores).
 """
 from .annotate import add_rfind_scores
@@ -11,7 +11,7 @@ from .scoring import (extract_counts, run_pipeline, score_cells, score_genesets,
                       score_panel_pairs)
 from .signature import build_cell_signature
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 __all__ = [
     "add_rfind_scores",

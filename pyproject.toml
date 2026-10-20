@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rfindsc"
-version = "1.0.0"
+version = "1.0.1"
 description = "Direction-aware panel scoring for single-cell RNA-seq (RFind-sc; Python implementation of the RFindsc R package)"
 readme = "README.md"
 requires-python = ">=3.9"

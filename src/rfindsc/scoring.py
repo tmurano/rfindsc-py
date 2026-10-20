@@ -13,8 +13,9 @@ import pandas as pd
 import scipy.sparse as sp
 
 from .config import rfindsc_config
-from .running_fisher import _is_missing, _running_fisher_many, to_b2
-from .signature import _cap, _signature_from_resid
+from .running_fisher import (DuplicateGeneNamesWarning, _is_missing,
+                             _running_fisher_many, to_b2)
+from .signature import _cap, _p2_residual, _signature_from_resid
 
 _LAYOUTS = ("genes_x_cells", "cells_x_genes")
 _BLOCK = 16          # cells per block (dense residual block and one batched kernel call)
@@ -79,11 +80,18 @@ def extract_counts(input, genes=None, cells=None, layout=None, layer=None):
         mat = np.asarray(mat, dtype=np.float64)
         if mat.ndim != 2:
             raise ValueError("counts must be a 2-D matrix.")
+    values = mat.data if sp.issparse(mat) else mat
+    if not np.isfinite(values).all() or np.any(values < 0):
+        raise ValueError("counts must contain only finite, non-negative values.")
+    if mat.shape[1] == 0:
+        raise ValueError("counts must contain at least one cell.")
     if genes is None:
         raise ValueError("gene names are required: pass `genes` (one per gene).")
     genes = pd.Index(genes)
     if len(genes) != mat.shape[0]:
         raise ValueError(f"{len(genes)} gene names for {mat.shape[0]} genes.")
+    if any(_is_missing(g) or not str(g).strip() for g in genes):
+        raise ValueError("gene names must not be missing or empty.")
     cells = pd.RangeIndex(mat.shape[1]) if cells is None else pd.Index(cells)
     if len(cells) != mat.shape[1]:
         raise ValueError(f"{len(cells)} cell names for {mat.shape[1]} cells.")
@@ -98,6 +106,7 @@ class _Context:
     lib: np.ndarray        # library size per cell
     rates: np.ndarray      # baseline rate per universe gene x baseline group
     group: np.ndarray      # baseline group index per cell
+    group_sizes: np.ndarray # number of cells contributing to each baseline
     codes: np.ndarray      # symbol id per universe gene (lower case)
     panels: list           # per panel: (lookup_up, lookup_down), None for an empty side
     set_sizes: list        # per panel: (K_up, K_down), None for a ranked panel or an empty side
@@ -105,6 +114,7 @@ class _Context:
     Ps: list               # per panel: size of the pair universe (distinct lower-case symbols)
     n_cell: object
     clip: float
+    return_signatures: bool
 
 
 def _lookup(codes, n_codes):
@@ -143,13 +153,14 @@ def _score_block(ctx: _Context, cols: np.ndarray):
     sub = ctx.X[:, cols]
     obs = sub.toarray() if sp.issparse(sub) else np.asarray(sub, dtype=np.float64)
     expected = ctx.rates[:, ctx.group[cols]] * ctx.lib[cols]
-    resid = (obs - expected) / np.sqrt(expected + 1)
+    resid = _p2_residual(obs, expected, ctx.group_sizes[ctx.group[cols]])
     ups, downs, pos, sizes, Ps = [], [], [], [], []
     for j in range(len(cols)):
         r = resid[:, j]
         up, dn = _signature_from_resid(r, ctx.n_cell)
-        ups.append(up)
-        downs.append(dn)
+        if ctx.return_signatures:
+            ups.append(up)
+            downs.append(dn)
         for (lk_up, lk_dn), (k_up, k_dn), mask, P in zip(ctx.panels, ctx.set_sizes, ctx.masks, ctx.Ps):
             # the cell's lists are cut inside the panel's pair universe (0.3.5)
             u, d = (up, dn) if mask is None else _signature_from_resid(r, ctx.n_cell, mask)
@@ -273,8 +284,8 @@ def score_cells(counts, biosets, config=None, return_signatures=False, libsize=N
         lib = np.asarray(libsize, dtype=np.float64).ravel()
         if lib.size != n_cells:
             raise ValueError("`libsize` must have one value per cell.")
-    if not np.all(lib > 0):
-        raise ValueError("every cell needs a positive library size.")
+    if not np.isfinite(lib).all() or not np.all(lib > 0):
+        raise ValueError("`libsize` must contain one finite, positive library size per cell.")
 
     if baseline_groups is None:
         group, n_groups = np.zeros(n_cells, dtype=np.int64), 1
@@ -310,6 +321,7 @@ def score_cells(counts, biosets, config=None, return_signatures=False, libsize=N
     # paper. A gene set (ranked = False) has no order: it is used whole, with K =
     # the number of its distinct genes in the universe.
     panels, set_sizes, masks, Ps = [], [], [], []
+    duplicated_panels = []
     for nm in axis_names:
         b = to_b2(biosets[nm])
         if b["eligible"] is None:
@@ -324,16 +336,26 @@ def score_cells(counts, biosets, config=None, return_signatures=False, libsize=N
         in_u = lambda g: g in name_code and (name_ok is None or name_ok[name_code[g]])   # noqa: E731
         for side in (b["up"], b["down"]):
             kept = _panel_side(side, b["ranked"], config["top_n"], in_u)
+            if len(set(kept)) < len(kept) and nm not in duplicated_panels:
+                duplicated_panels.append(nm)
             sides.append(_lookup([name_code[g] for g in kept], len(uniq_names)) if kept else None)
             sizes.append(None if b["ranked"] or not kept else len(set(kept)))
         panels.append(tuple(sides))
         set_sizes.append(tuple(sizes))
         masks.append(mask)
 
+    if duplicated_panels:
+        warnings.warn("Reference panel(s) name a gene more than once after case-insensitive matching: "
+                      + ", ".join(map(str, duplicated_panels))
+                      + ". Remove duplicates before scoring; reference ranks are otherwise unchanged.",
+                      DuplicateGeneNamesWarning, stacklevel=2)
+
     ctx = _Context(X=X[keep_idx, :], lib=lib, rates=rates[keep_idx], group=group,
+                   group_sizes=np.bincount(group, minlength=n_groups),
                    codes=codes.astype(np.int64), panels=panels, set_sizes=set_sizes,
                    masks=masks, Ps=Ps,
-                   n_cell=_cap(config["n_cell"]), clip=float(config["clip"]))
+                   n_cell=_cap(config["n_cell"]), clip=float(config["clip"]),
+                   return_signatures=bool(return_signatures))
     n_cores = max(1, int(config.get("n_cores", 1)))
     size = max(1, min(_BLOCK, math.ceil(n_cells / n_cores)))
     blocks = [np.arange(s, min(s + size, n_cells)) for s in range(0, n_cells, size)]

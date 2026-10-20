@@ -4,6 +4,22 @@ Versions follow the R package [RFindsc](https://github.com/tmurano/RFindsc): a
 given version of `rfindsc` (Python) gives the same scores as the same version
 of RFindsc (R).
 
+## 1.0.1 (2026-10-20)
+
+The version of the RFind-sc paper. Matches RFindsc 1.0.1; the scores of the paper's data are those of 1.0.0.
+
+* A count difference within the floating-point error of the baseline is zero, so
+  a cell identical to its baseline (for example the only cell of a baseline
+  group) gets empty UP/DOWN lists and a score of 0; rounding errors gave it
+  non-zero scores before. RFindsc uses the same rule.
+* Counts that are not finite or are negative, library sizes that are not finite
+  and positive, and missing or empty gene names stop with an error.
+* A gene named twice in a prepared reference list gives one warning before
+  scoring (the list is scored as given).
+* With `return_signatures=False`, the per-cell signatures are not kept.
+* Regression tests, and a test that runs this package and RFindsc on the same
+  inputs (`RFINDSC_R_SOURCE`; `tools/check_cross_language.py`).
+
 ## 1.0.0 (2026-10-20)
 
 First stable release, the version of the RFind-sc paper. Matches RFindsc 1.0.0; the code and the scores are those
