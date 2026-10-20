@@ -3,8 +3,8 @@
 **Direction-aware panel scoring for single-cell RNA-seq (RFind-sc), in Python.**
 
 `rfindsc` is the Python implementation of the R package
-[RFindsc](https://github.com/tmurano/RFindsc). Version 0.3.8 matches
-**RFindsc 0.3.8**: the same algorithm, the same bundled references and the same
+[RFindsc](https://github.com/tmurano/RFindsc). Version 1.0.0 matches
+**RFindsc 1.0.0**: the same algorithm, the same bundled references and the same
 scores (the test suite checks agreement with R to 1e-8; the observed differences
 are below 1e-12; see [Numerical equivalence](#numerical-equivalence)).
 
@@ -34,20 +34,20 @@ lists, UP and DOWN, or a single gene set):
    `S = RF(UP, set) - RF(DOWN, set)`.
 
 The scoring universe is the genes detected in at least 1% of cells. Each panel
-is scored in its pair universe (0.3.5): the scoring universe intersected with
+is scored in its pair universe: the scoring universe intersected with
 the panel's `eligible` genes (the genes its source study reported, set by
 `build_panel_from_deg()` and carried by the bundled ranked references), or the
 whole scoring universe for a panel without `eligible` (a gene set). Each cell's
 UP / DOWN lists are restricted to it before the top 500 genes per side are
 taken; a ranked panel keeps its top 500 genes per side and then those in the
-pair universe (0.3.8), and a gene set is used whole.
+pair universe, and a gene set is used whole.
 
 ## Installation
 
 ```bash
-pip install git+https://github.com/tmurano/rfindsc-py@v0.3.8
+pip install git+https://github.com/tmurano/rfindsc-py@v1.0.0
 # optional AnnData support
-pip install "rfindsc[anndata] @ git+https://github.com/tmurano/rfindsc-py@v0.3.8"
+pip install "rfindsc[anndata] @ git+https://github.com/tmurano/rfindsc-py@v1.0.0"
 ```
 
 Requires Python >= 3.9, numpy, scipy and pandas.
@@ -96,8 +96,7 @@ of the R function of the same name, which writes into the metadata of a Seurat o
   `rfindsc_config(nonzero_rate=0)`).
 * `baseline_groups=`: one label per cell, e.g. the cell type. Each cell is then
   compared with the mean of its own group instead of all cells, as the paper
-  does for the De Donno et al. dataset (same argument in the R package,
-  RFindsc >= 0.3.3). The scoring universe is still chosen over all cells.
+  does for the De Donno et al. dataset (same argument in the R package). The scoring universe is still chosen over all cells.
 
 ### Panels
 
@@ -122,13 +121,13 @@ Gene symbols are matched case-insensitively, as in R.
 A panel is either ranked (most extreme gene first) or an unordered membership
 set with `"ranked": False` (the bundled gene groups `Interferon`, `G2M`, `UPR`
 and `NF-kB`, and every set given to `score_genesets()`). A set is used whole,
-so the order of its genes does not matter (since 0.3.4).
+so the order of its genes does not matter.
 
 ### Output
 
 `score_cells()` and the wrappers return a dict: `scores` (cells x panels
 DataFrame), `universe` (the scoring genes), `universe_size` (the pair universe
-size per panel, 0.3.5) and, with
+size per panel) and, with
 `return_signatures=True`, `signatures` (per-cell `up_idx` / `down_idx`,
 0-based indices into `universe`).
 
@@ -165,8 +164,7 @@ Differences from the R package:
 * `n_cores` defaults to 1 (R: number of cores minus one; 1 on Windows). The
   results do not depend on it.
 * Python-only input options: `genes=`, `cells=`, `layout=`, `layer=` (AnnData,
-  data frames, plain matrices). `libsize=` and `baseline_groups=` exist in both
-  (`baseline_groups` in R since RFindsc 0.3.3).
+  data frames, plain matrices). `libsize=` and `baseline_groups=` exist in both.
 
 ## Numerical equivalence
 
@@ -198,13 +196,12 @@ pytest -s            # prints the maximum differences
 
 2,000 Hammond et al. microglia x the 4 bundled panels (8,960-gene universe) on
 an 8-core Apple M3 laptop: about 490 cells/s on one core and 2,400 cells/s with
-`n_cores=8` (RFindsc 0.3.6 in R: about 250 cells/s on one core and 740 cells/s
-on 7 cores; 2026-09-29).
+`n_cores=8` (2026-09-29).
 
 ## Citation
 
 Murano et al. (in preparation). Until the preprint is available, please cite
-this repository (the paper used version 0.3.8, git tag `v0.3.8`) and the R package.
+this repository (the paper used version 1.0.0, git tag `v1.0.0`) and the R package.
 
 ## License
 

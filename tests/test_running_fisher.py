@@ -144,3 +144,11 @@ def test_to_b2_marks_membership_sets_unranked():
     assert to_b2({"up": ["A"], "type": "gene_group", "ranked": True})["ranked"] is True
     assert to_b2({"up": ["A"], "type": "gene_group", "ranked": np.bool_(True)})["ranked"] is True
     assert to_b2({"up": ["A"], "ranked": np.bool_(False)})["ranked"] is False
+
+
+def test_duplicated_names_warn_and_score_as_before():
+    # 0.3.9 (R: class rfindsc_duplicated_names): a name given twice counts twice; the warning says so
+    from rfindsc.running_fisher import DuplicateGeneNamesWarning
+    with pytest.warns(DuplicateGeneNamesWarning):
+        s = running_fisher(["a", "a", "b", "c"], ["a", "d", "b"], 50)
+    assert np.isfinite(s)

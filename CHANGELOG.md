@@ -4,6 +4,20 @@ Versions follow the R package [RFindsc](https://github.com/tmurano/RFindsc): a
 given version of `rfindsc` (Python) gives the same scores as the same version
 of RFindsc (R).
 
+## 1.0.0 (2026-10-20)
+
+First stable release, the version of the RFind-sc paper. Matches RFindsc 1.0.0; the code and the scores are those
+of 0.3.9 (only the version number changed).
+
+## 0.3.9 (2026-10-19)
+
+Matches RFindsc 0.3.9; scores are unchanged.
+
+* `running_fisher()` warns (`DuplicateGeneNamesWarning`) when a list names a gene more than once, which counts the gene
+  twice and inflates the overlap; `score_cells()` warns once when names of the scoring universe differ only in case
+  (e.g. PISD and Pisd), since names are matched without regard to case.
+* The faster multi-core scoring of RFindsc 0.3.9 concerns the R package only (this package already scaled with cores).
+
 ## 0.3.8 (2026-10-16)
 
 Matches RFindsc 0.3.8.

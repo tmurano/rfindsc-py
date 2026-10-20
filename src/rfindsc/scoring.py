@@ -292,6 +292,14 @@ def score_cells(counts, biosets, config=None, return_signatures=False, libsize=N
     universe = [gene_ids[i] for i in keep_idx]
     P = len(universe)
     gene_names = [str(g).lower() for g in universe]
+    # Names are matched without regard to case, so two rows whose names differ only in case (e.g. PISD and Pisd) count as
+    # the same gene twice in a cell's lists (0.3.9: a warning, once; the scores are computed as before)
+    dup_names = pd.Series(gene_names, dtype=object)
+    dup_names = dup_names[dup_names.duplicated()].unique()
+    if len(dup_names):
+        warnings.warn(f"{len(dup_names)} gene name(s) occur in more than one row of the scoring universe when case is "
+                      f"ignored (e.g. {', '.join(dup_names[:3])}); such a gene can be counted twice in a cell's lists. "
+                      "Merge or rename these rows before scoring.", stacklevel=2)
     codes, uniq_names = pd.factorize(pd.Series(gene_names, dtype=object))
     name_code = {g: i for i, g in enumerate(uniq_names)}
 

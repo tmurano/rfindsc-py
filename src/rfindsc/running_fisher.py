@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 from collections.abc import Mapping, Sequence
 
 import numpy as np
@@ -10,6 +11,10 @@ import pandas as pd
 from ._hyper import log_upper_tail
 
 _LN10 = math.log(10.0)
+
+
+class DuplicateGeneNamesWarning(UserWarning):
+    """A gene list names a gene more than once (0.3.9; R: class ``rfindsc_duplicated_names``)."""
 
 
 def _corners(pos2: np.ndarray):
@@ -157,11 +162,21 @@ def running_fisher(g1, g2, universe_size, clip=300.0, g2_ranked=True) -> float:
     float
         The score, clipped to ``[0, clip]``; 0 when either list is empty or the
         lists share no gene.
+
+    Notes
+    -----
+    Each list should name each gene once: a name given twice counts as two
+    genes and inflates the overlap ``M``. Since 0.3.9 such input gives a
+    :class:`DuplicateGeneNamesWarning`; the score is computed as before.
     """
     g1 = list(g1)
     g2 = list(g2)
     if not g1 or not g2:
         return 0.0
+    if len(set(g1)) < len(g1) or len(set(g2)) < len(g2):
+        warnings.warn("running_fisher(): a gene list names a gene more than once; each copy counts as a separate gene "
+                      "and inflates the overlap. Remove the duplicates before matching.", DuplicateGeneNamesWarning,
+                      stacklevel=2)
     sizes = None if g2_ranked else [len(set(g2))]
     return float(_running_fisher_many([_positions(g1, g2)], universe_size, clip, sizes)[0])
 

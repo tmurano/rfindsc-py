@@ -222,3 +222,17 @@ def test_panel_side_cut_before_pair_universe():
     assert _panel_side(["g11", "g1", "g2", "g3"], True, 2, in_u) == ["g1"]      # the top 2 are g11 and g1
     assert _panel_side(["g4", "g12", "g5"], True, 2, in_u) == ["g4"]             # the top 2 are g4 and g12
     assert _panel_side(["g11", "g1", "g2", "g3"], False, 2, in_u) == ["g1", "g2", "g3"]   # a gene set is used whole
+
+
+def test_score_cells_warns_once_about_names_that_differ_only_in_case():
+    # 0.3.9: names are matched without regard to case, so PISD and Pisd would count as the same gene twice
+    import warnings
+    rng = np.random.default_rng(3)
+    counts = rng.poisson(3, size=(60, 30)).astype(float)
+    genes = ["Gdup", "GDUP"] + [f"g{i}" for i in range(3, 61)]
+    cells = [f"c{i}" for i in range(1, 31)]
+    bs = {"P": {"up": [f"g{i}" for i in range(3, 13)], "down": [f"g{i}" for i in range(13, 23)]}}
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        score_cells(counts, bs, config=rfindsc_config(n_cores=1), genes=genes, cells=cells, layout="genes_x_cells")
+    assert sum("occur in more than one row" in str(x.message) for x in w) == 1
